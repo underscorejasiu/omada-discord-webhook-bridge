@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  omada-discord-bridge:
+    build: .
+    container_name: omada-discord-bridge
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - SHARD_SECRET=${SHARD_SECRET}
+      - ENABLE_CORS=true
+      - ENABLE_HELMET=true
+      - LOG_LEVEL=info
+    # Uncomment and modify if using config file instead of env vars
+    # volumes:
+    #   - ./config.json:/app/config.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,21 @@
+{
+  "server": {
+    "port": 3000,
+    "nodeEnv": "development"
+  },
+  "discord": {
+    "webhookUrl": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+    "rateLimitDelay": 1000
+  },
+  "security": {
+    "shardSecret": "your_secret_key_here"
+  },
+  "options": {
+    "enableCors": true,
+    "enableHelmet": true,
+    "logLevel": "info"
+  },
+  "omada": {
+    "controllerUrl": "https://your-omada-controller.local"
+  }
+}
