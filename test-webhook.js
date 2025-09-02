@@ -1,18 +1,23 @@
-/**
- * Test script to send sample Omada webhook payloads to the bridge
- * Usage: node test-webhook.js [endpoint] [secret]
- */
+const config = require('./src/config');
 
-const axios = require('axios');
+function createTimeoutSignal(timeoutMs) {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(timeoutMs);
+  } else {
+    // Fallback for Node.js < 16.14.0
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), timeoutMs);
+    return controller.signal;
+  }
+}
 
-// Sample Omada webhook payloads for testing (basic Omada format only)
 const testPayloads = {
   deviceOffline: {
     site: 'Main Office',
     description: 'Device "Office AP" has gone offline',
     text: ['Device Offline', 'Office AP (AA:BB:CC:DD:EE:FF) has disconnected'],
     Controller: 'Omada Controller v5.13.30',
-    timestamp: Math.floor(Date.now() / 1000)
+    timestamp: Date.now()
   },
 
   attackDetected: {
@@ -20,7 +25,7 @@ const testPayloads = {
     description: 'Critical: Potential DDoS attack detected from external source',
     text: ['Security Alert', 'DDoS attack detected from 203.0.113.15', 'Target: Gateway Router'],
     Controller: 'Omada Controller v5.13.30',
-    timestamp: Math.floor(Date.now() / 1000)
+    timestamp: Date.now()
   },
 
   clientConnected: {
@@ -28,7 +33,7 @@ const testPayloads = {
     description: 'New client connected to wireless network',
     text: ['Client Connected', 'John-iPhone connected to Office-WiFi via Conference Room AP'],
     Controller: 'Omada Controller v5.13.30',
-    timestamp: Math.floor(Date.now() / 1000)
+    timestamp: Date.now()
   },
 
   firmwareUpdate: {
@@ -36,19 +41,27 @@ const testPayloads = {
     description: 'Firmware update completed successfully',
     text: ['Firmware Update', 'Lobby Switch updated to version 1.0.5', 'Update completed in 3 minutes'],
     Controller: 'Omada Controller v5.13.30',
-    timestamp: Math.floor(Date.now() / 1000)
+    timestamp: Date.now()
   },
 
   basicAlert: {
     site: 'Main Office',
     description: 'Connection timeout detected',
     Controller: 'Omada Controller',
-    timestamp: Math.floor(Date.now() / 1000)
+    timestamp: Date.now()
   },
 
   minimalPayload: {
     description: 'Simple alert message',
-    timestamp: Math.floor(Date.now() / 1000)
+    timestamp: Date.now()
+  },
+
+  testDiscordJS: {
+    Site: 'Test Site',
+    description: 'Testing discord.js implementation',
+    text: ['Test message', 'Discord.js WebhookClient integration'],
+    Controller: 'Omada Controller Test',
+    timestamp: Date.now()
   }
 };
 
@@ -73,12 +86,14 @@ async function testWebhook(endpoint = 'http://localhost:3000/webhook/omada', sec
     try {
       console.log(`📤 Testing: ${testName}`);
       
-      const response = await axios.post(endpoint, payload, { 
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers,
-        timeout: 10000
+        body: JSON.stringify(payload),
+        signal: createTimeoutSignal(10000) // 10 second timeout
       });
 
-      if (response.status === 200) {
+      if (response.ok) {
         console.log(`✅ ${testName}: SUCCESS`);
         successCount++;
       } else {
@@ -91,9 +106,10 @@ async function testWebhook(endpoint = 'http://localhost:3000/webhook/omada', sec
 
     } catch (error) {
       console.log(`❌ ${testName}: FAILED`);
-      if (error.response) {
-        console.log(`   Status: ${error.response.status}`);
-        console.log(`   Error: ${error.response.data?.error || 'Unknown error'}`);
+      if (error.name === 'AbortError') {
+        console.log(`   Error: Request timeout`);
+      } else if (error.cause && error.cause.code) {
+        console.log(`   Error: ${error.cause.code} - ${error.message}`);
       } else {
         console.log(`   Error: ${error.message}`);
       }
@@ -117,12 +133,15 @@ async function testWebhook(endpoint = 'http://localhost:3000/webhook/omada', sec
 async function testHealth(baseUrl = 'http://localhost:3000') {
   try {
     console.log('🏥 Testing health endpoint...');
-    const response = await axios.get(`${baseUrl}/health`, { timeout: 5000 });
+    const response = await fetch(`${baseUrl}/health`, {
+      signal: createTimeoutSignal(5000)
+    });
     
-    if (response.status === 200) {
+    if (response.ok) {
+      const data = await response.json();
       console.log('✅ Health check: PASSED');
-      console.log(`   Status: ${response.data.status}`);
-      console.log(`   Version: ${response.data.version}`);
+      console.log(`   Status: ${data.status}`);
+      console.log(`   Version: ${data.version}`);
       return true;
     } else {
       console.log(`❌ Health check: FAILED (Status: ${response.status})`);
@@ -130,7 +149,11 @@ async function testHealth(baseUrl = 'http://localhost:3000') {
     }
   } catch (error) {
     console.log('❌ Health check: FAILED');
-    console.log(`   Error: ${error.message}`);
+    if (error.name === 'AbortError') {
+      console.log(`   Error: Request timeout`);
+    } else {
+      console.log(`   Error: ${error.message}`);
+    }
     return false;
   }
 }
@@ -139,20 +162,30 @@ async function testHealth(baseUrl = 'http://localhost:3000') {
 async function testDiscord(baseUrl = 'http://localhost:3000') {
   try {
     console.log('🔗 Testing Discord connectivity...');
-    const response = await axios.get(`${baseUrl}/test/discord`, { timeout: 10000 });
+    const response = await fetch(`${baseUrl}/test/discord`, {
+      signal: createTimeoutSignal(10000)
+    });
     
-    if (response.status === 200 && response.data.success) {
-      console.log('✅ Discord test: PASSED');
-      return true;
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        console.log('✅ Discord test: PASSED');
+        return true;
+      } else {
+        console.log('❌ Discord test: FAILED');
+        console.log(`   Error: ${data.message || 'Unknown error'}`);
+        return false;
+      }
     } else {
+      const data = await response.json().catch(() => ({}));
       console.log('❌ Discord test: FAILED');
-      console.log(`   Error: ${response.data.message || 'Unknown error'}`);
+      console.log(`   Error: ${data.error || `HTTP ${response.status}`}`);
       return false;
     }
   } catch (error) {
     console.log('❌ Discord test: FAILED');
-    if (error.response?.data?.error) {
-      console.log(`   Error: ${error.response.data.error}`);
+    if (error.name === 'AbortError') {
+      console.log(`   Error: Request timeout`);
     } else {
       console.log(`   Error: ${error.message}`);
     }

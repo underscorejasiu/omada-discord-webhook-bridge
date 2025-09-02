@@ -8,7 +8,7 @@ A robust Node.js bridge that translates TP-Link Omada Controller webhook notific
 - 🎨 **Rich Discord Embeds**: Beautiful formatting with colors, fields, and status indicators
 - 🔒 **Security**: Optional shard secret authentication and input validation
 - 📊 **Comprehensive Logging**: Detailed logging for monitoring and debugging
-- 🚀 **High Performance**: Built with Express.js for fast webhook processing
+- 🚀 **High Performance**: Built with Express.js and discord.js for fast webhook processing
 - 🛡️ **Error Handling**: Robust error handling and graceful degradation
 - 📱 **Alert Prioritization**: Automatic @mentions for critical alerts
 - 🔧 **Flexible Configuration**: Environment variables or JSON configuration file
@@ -284,17 +284,66 @@ Start with debug logging:
 LOG_LEVEL=debug npm start
 ```
 
-## Development
+## Testing
 
-### Running Tests
+### Unit Tests
+Run the Jest test suite:
 ```bash
+# Run all tests
 npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
 ```
+
+### Integration Tests
+Test the complete webhook flow:
+```bash
+# Test with default settings (requires running server)
+npm run test:integration
+
+# Test with custom endpoint and secret
+node test-webhook.js http://localhost:3000/webhook/omada your_secret_key
+```
+
+### Manual Testing
+```bash
+# 1. Start the server
+npm start
+
+# 2. Test health endpoint
+curl http://localhost:3000/health
+
+# 3. Test Discord connectivity
+curl http://localhost:3000/test/discord
+
+# 4. Send test webhook
+curl -X POST http://localhost:3000/webhook/omada \
+  -H "Content-Type: application/json" \
+  -H "X-Shard-Secret: your_secret" \
+  -d '{
+    "Site": "Test Site",
+    "description": "Test alert message",
+    "Controller": "Test Controller",
+    "timestamp": 1704067200
+  }'
+```
+
+### Test Coverage
+The test suite covers:
+- ✅ **Translator**: Payload conversion, event detection, field mapping
+- ✅ **Validator**: Input validation, sanitization, security checks  
+- ✅ **Config**: Environment variables, JSON files, validation
+- ✅ **Integration**: End-to-end webhook processing
+
+## Development
 
 ### Code Style
 ```bash
 npm run lint
-npm run format
 ```
 
 ### Contributing

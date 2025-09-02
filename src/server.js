@@ -83,16 +83,13 @@ app.post('/webhook/omada', authenticateWebhook, async (req, res) => {
   try {
     console.log(`[${new Date().toISOString()}] Received Omada webhook:`, JSON.stringify(req.body, null, 2));
 
-    // Validate headers
     const headerValidation = validator.validateHeaders(req.headers);
     if (!headerValidation.isValid) {
       console.warn(`[${new Date().toISOString()}] Header validation issues:`, headerValidation.issues);
     }
 
-    // Sanitize input
     const sanitizedPayload = validator.sanitizeObject(req.body);
 
-    // Validate Omada payload
     const payloadValidation = validator.validateOmadaPayload(sanitizedPayload);
     if (!payloadValidation.isValid) {
       console.error(`[${new Date().toISOString()}] Invalid Omada payload:`, payloadValidation.error);
@@ -102,11 +99,9 @@ app.post('/webhook/omada', authenticateWebhook, async (req, res) => {
       });
     }
 
-    // Translate to Discord format
     const discordPayload = translator.translate(payloadValidation.value);
     console.log(`[${new Date().toISOString()}] Translated to Discord format:`, JSON.stringify(discordPayload, null, 2));
 
-    // Send to Discord
     const sendResult = await discordSender.send(discordPayload);
 
     res.json({
@@ -127,7 +122,6 @@ app.post('/webhook/omada', authenticateWebhook, async (req, res) => {
   }
 });
 
-// Error handling middleware
 app.use((error, req, res, next) => {
   console.error(`[${new Date().toISOString()}] Unhandled error:`, error);
   
@@ -151,7 +145,6 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -164,23 +157,25 @@ app.use((req, res) => {
   });
 });
 
-// Graceful shutdown handling
 const gracefulShutdown = (signal) => {
   console.log(`[${new Date().toISOString()}] Received ${signal}, shutting down gracefully...`);
+  
+  // Cleanup Discord client
+  if (discordSender) {
+    discordSender.destroy();
+  }
   
   server.close(() => {
     console.log(`[${new Date().toISOString()}] Server closed`);
     process.exit(0);
   });
 
-  // Force shutdown after 10 seconds
   setTimeout(() => {
     console.error(`[${new Date().toISOString()}] Forced shutdown after timeout`);
     process.exit(1);
   }, 10000);
 };
 
-// Start the server
 const port = config.get('server.port') || 3000;
 const server = app.listen(port, () => {
   console.log(`[${new Date().toISOString()}] Omada-Discord webhook bridge started`);
@@ -196,11 +191,9 @@ const server = app.listen(port, () => {
   }
 });
 
-// Handle shutdown signals
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error(`[${new Date().toISOString()}] Uncaught Exception:`, error);
   process.exit(1);

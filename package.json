@@ -6,7 +6,11 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:integration": "node test-webhook.js",
+    "lint": "echo 'Add linter here if needed'"
   },
   "keywords": [
     "omada",
@@ -19,7 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
-    "axios": "^1.6.2",
+    "discord.js": "^14.14.1",
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -31,5 +35,18 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   }
 }
