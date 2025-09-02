@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  omada-discord-bridge:
+  omada-discord-webhook-bridge:
     build: .
-    container_name: omada-discord-bridge
+    container_name: omada-discord-webhook-bridge
     restart: unless-stopped
     ports:
       - "3000:3000"
